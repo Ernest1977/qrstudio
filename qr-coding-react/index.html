@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Coding — Générateur de QR codes</title>
+    <meta
+      name="description"
+      content="Générateur de QR codes gratuit : URL, réseaux sociaux, carte de visite vCard, Wi-Fi, SMS, e-mail, événement, logo et export PNG/SVG. Tout se passe dans le navigateur."
+    />
+    <meta name="theme-color" content="#0a0a0c" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23d4af37'/%3E%3Cg fill='%230a0a0c'%3E%3Cpath d='M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2.5v2.5H14zM18 14h2v2h-2zM14 18h2.5v2.5H14zM18 18h2v2h-2z'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <!--
+      Le thème est résolu avant le premier rendu React : sans ce script, la page
+      s'affiche en sombre puis saute en clair (ce que faisait l'original, qui ne
+      lisait localStorage nulle part).
+    -->
+    <script>
+      (function () {
+        var theme = 'dark';
+        try {
+          var saved = localStorage.getItem('qr-coding:theme');
+          if (saved === 'light' || saved === 'dark') theme = saved;
+        } catch (e) {
+          /* stockage indisponible */
+        }
+        var root = document.documentElement;
+        if (theme === 'light') root.setAttribute('data-theme', 'light');
+        else root.removeAttribute('data-theme');
+        root.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript
+      >Ce générateur fonctionne entièrement dans le navigateur : activez JavaScript pour créer vos QR codes. Aucune donnée
+      n'est envoyée sur un serveur.</noscript
+    >
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

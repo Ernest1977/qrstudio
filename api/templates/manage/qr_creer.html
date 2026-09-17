@@ -1,0 +1,141 @@
+{% extends "admin/base_site.html" %}
+{% block title %}QR Studio — créer un QR depuis l'espace admin{% endblock %}
+{% block content %}
+{% include "manage/_style.html" %}
+
+<h1>Créer un QR — espace admin</h1>
+<div class="qrc-nav">
+  <a href="{% url 'backoffice:analytique' %}">Analytique</a>
+  <a href="{% url 'backoffice:qr_creer' %}" class="lien-actif">Créer un QR</a>
+  <a href="{% url 'backoffice:dashboard' %}">État du service</a>
+</div>
+
+<p class="qrc-note">Cette page ne facture rien, et ce n'est pas une remise : le compte porte la permission
+  <code>qr.creer_sans_facturation</code>, donc la porte de quota
+  (<code>apps/qr/quota.py</code>) est ouverte <em>avant</em> toute question de palier. Le QR est créé par le
+  même service que l'API (<code>apps.qr.services.create_qr</code>) — mêmes validations, mêmes versions, même
+  invalidation de cache — avec <code>origine = "admin"</code>, ce qui le rend comptable à part dans
+  l'analytique. Le dynamique est ouvert ici alors qu'il est payant pour un client : c'est exactement ce que
+  l'exemption doit permettre (outils internes, démonstrations, maquettes commerciales).</p>
+
+{% if global or erreurs %}
+  <div class="qrc-erreurs">
+    <strong>La création a été refusée.</strong>
+    {% if global %}<p>{{ global }}</p>{% endif %}
+    <ul>
+      {% for champ, liste in erreurs.items %}
+        <li><code>{{ champ }}</code> : {% for message in liste %}{{ message }} {% endfor %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<form method="post" action="{% url 'backoffice:qr_creer' %}">
+  {% csrf_token %}
+  <fieldset class="qrc-champs">
+    <label>Libellé
+      <input type="text" name="label" maxlength="120" value="{{ valeurs.label|default:'' }}"
+             placeholder="Vitrine boutique Naples — été">
+    </label>
+    <label>Nature du QR
+      <select name="kind">
+        <option value="static" {% if valeurs.kind == "static" %}selected{% endif %}>Statique — le contenu est gravé dans le QR</option>
+        <option value="dynamic" {% if valeurs.kind == "dynamic" %}selected{% endif %}>Dynamique — redirigeable, scanné-et-compté</option>
+      </select>
+    </label>
+    <label>Type de contenu
+      <select name="type_id">
+        {% for type in types %}
+          <option value="{{ type }}" {% if valeurs.type_id == type %}selected{% endif %}>{{ type }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Contenu (QR statique)
+      <textarea name="payload" placeholder="Texte, URL, carte de visite…">{{ valeurs.payload|default:'' }}</textarea>
+    </label>
+    <label>Destination (QR dynamique)
+      <input type="text" name="target_url" value="{{ valeurs.target_url|default:'' }}"
+             placeholder="https://kamcofarm.example/promo-ete">
+    </label>
+    <label>Notes internes
+      <input type="text" name="notes" maxlength="500" value="{{ valeurs.notes|default:'' }}"
+             placeholder="Campagne, destinataire, référence devis">
+    </label>
+    <label class="case">
+      <input type="checkbox" name="is_public" {% if valeurs.is_public %}checked{% endif %}>
+      Résolution publique (le lien court répond sans authentification)
+    </label>
+  </fieldset>
+
+  <fieldset class="qrc-champs">
+    <legend>Rendu Entreprise — optionnel</legend>
+    <label>Style artistique
+      <select name="art">
+        <option value="">Aucun (noir et blanc, le plus prudent)</option>
+        {% for style in styles %}
+          <option value="{{ style.code }}">{{ style.nom }} — contraste {{ style.contraste }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Animation
+      <select name="animation">
+        <option value="">Aucune</option>
+        <option value="bordure">Bordure animée (GIF pour écrans et réseaux)</option>
+      </select>
+    </label>
+    <label>Frames
+      <input type="number" name="frames" min="8" max="48" step="1" placeholder="24">
+    </label>
+    <label>Liseré (px)
+      <input type="number" name="liser" min="0" max="64" step="1" placeholder="24">
+    </label>
+    <p class="qrc-note">Le GIF n'est produit que s'il se relit : au moins 60 % de frames statiques, un
+      module d'au moins 6 px, et un logo sous {{ logo_surface_max }} de la surface du code. Un rendu qui
+      échoue à cette relecture est refusé, jamais servi « en l'état ».</p>
+  </fieldset>
+
+  <fieldset class="qrc-champs">
+    <legend>Code promo de la campagne — optionnel</legend>
+    <label>Intitulé affiché
+      <input type="text" name="promo_libelle" maxlength="160" placeholder="-30% sur la cave">
+    </label>
+    <label>Remise (%)
+      <input type="text" name="promo_valeur" maxlength="6" placeholder="30">
+    </label>
+    <label>Valide (jours)
+      <input type="number" name="promo_jours" min="1" max="730" step="1" placeholder="30">
+    </label>
+    <label>Usages maximum
+      <input type="number" name="promo_usages_max" min="1" step="1" placeholder="500">
+    </label>
+    <p class="qrc-note">La date de fin est obligatoire côté modèle : laisser <code>promo_jours</code> vide
+      ne crée aucun code. Le code est généré (jamais saisi) et affiché une seule fois, dans l'URL de
+      confirmation.</p>
+  </fieldset>
+
+  {% if cree %}
+  <div class="qrc-card" role="status">
+    <h2>QR créé — gratuit, sans facturation</h2>
+    <p class="qrc-note" style="margin:0"><code>{{ cree.slug }}</code> ·
+      <a href="{% url 'backoffice:analytique_qr' cree.pk %}">voir les scans</a>
+      {% if promo %} · code promo <code>{{ promo }}</code>{% endif %}</p>
+  </div>
+  {% endif %}
+
+  <fieldset class="qrc-champs">
+    <div>
+      <button type="submit" class="qrc-bouton">Créer le QR</button>
+      <a class="qrc-bouton secondaire" href="{% url 'backoffice:analytique' %}">Annuler</a>
+    </div>
+  </fieldset>
+</form>
+
+<div class="qrc-card">
+  <h2>Formats acceptés</h2>
+  <p class="qrc-note" style="margin:0">Un QR statique doit porter un <code>payload</code> non vide, de
+    {{ limite_payload }} octets maximum (version 40, correction L). Un QR dynamique exige une <code>target_url</code>
+    absolue en http(s) — les URL de boucle vers l'instance elle-même, les réseaux internes et les schémas
+    exotiques sont refusés par le même validateur que l'API. Le slug court est attribué à la création ; le
+    lien <code>/r/&lt;slug&gt;</code> est le seul qu'un QR dynamique doit embarquer.</p>
+</div>
+{% endblock %}

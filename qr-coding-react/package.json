@@ -1,0 +1,27 @@
+{
+  "name": "qr-coding-react",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Générateur de QR codes — réécriture React (Vite) de qr-coding.html",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test:lib": "node --test scripts/lib.test.mjs scripts/svg-echappement.test.mjs",
+    "test:browser": "npm run build && node --test scripts/browser.test.mjs",
+    "test": "npm run build && node --test scripts/*.test.mjs"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "puppeteer": "^23.11.1",
+    "sharp": "^0.35.4",
+    "vite": "5.4.11",
+    "zxing-wasm": "^3.1.4"
+  }
+}

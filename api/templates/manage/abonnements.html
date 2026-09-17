@@ -1,0 +1,102 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+{% block title %}QR Studio — abonnements et paiements{% endblock %}
+{% block content %}
+{% include "manage/_style.html" %}
+
+<h1>Abonnements et paiements</h1>
+<div class="qrc-nav">
+  <a href="{% url 'backoffice:dashboard' %}">État du service</a>
+  <a href="{% url 'backoffice:analytique' %}">Analytique</a>
+  <a href="{% url 'backoffice:abonnements' %}" class="lien-actif">Abonnements</a>
+  <a href="{% url 'admin:index' %}">django-admin</a>
+</div>
+
+<p class="qrc-note">Lecture seule, et ce n'est pas une réserve de principe : les objets de facturation ne
+  sont enregistrés dans <code>django-admin</code> nulle part (<code>apps/billing/</code> ne définit pas
+  d'<code>admin.py</code>), précisément pour qu'aucune case à cocher ne puisse accorder un palier. Tout ce qui accorde
+  une licence passe par un webhook vérifié (<code>stripe_api</code>, ou la re-interrogation de la transaction
+  côté mobile), et une case à cocher dans une page d'admin serait une porte de sortie pour la comptabilité.
+  Les 200 lignes ci-dessous sont triées par dernière mise à jour.</p>
+
+<ul class="qrc-kpis">
+  {% for statut, n in par_statut.items %}
+    <li><b>{{ n|intcomma }}</b><span>{{ statut }}</span></li>
+  {% empty %}
+    <li><b>0</b><span>aucun abonnement</span></li>
+  {% endfor %}
+  <li><b>{{ qr_admin|intcomma }}</b><span>QR créés dans l'espace admin</span></li>
+</ul>
+
+<div class="qrc-card">
+  <h2>Abonnements</h2>
+  <table class="qrc-table">
+    <thead><tr><th>Compte</th><th>Palier</th><th>Statut</th><th>Fournisseur</th><th>Période fin</th><th>Sursis</th></tr></thead>
+    <tbody>
+    {% for ligne in lignes %}
+      <tr>
+        <td>{{ ligne.user__email }}</td>
+        <td>{{ ligne.palier }}</td>
+        <td>{{ ligne.statut }}</td>
+        <td>{{ ligne.fournisseur }}</td>
+        <td>{{ ligne.periode_fin|date:"Y-m-d H:i"|default:"—" }}</td>
+        <td>{{ ligne.en_sursis_jusqu_a|date:"Y-m-d"|default:"—" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">Aucun abonnement enregistré.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="qrc-card">
+  <h2>Paiements mobiles en cours ou récents</h2>
+  <table class="qrc-table">
+    <thead><tr><th>Référence</th><th>Compte</th><th>Palier</th><th>Statut</th><th class="n">Montant (centimes)</th><th>Téléphone</th><th>Demandé le</th></tr></thead>
+    <tbody>
+    {% for paiement in mobiles %}
+      <tr>
+        <td><code>{{ paiement.reference }}</code></td>
+        <td>{{ paiement.user__email }}</td>
+        <td>{{ paiement.palier }}</td>
+        <td>{{ paiement.statut }}</td>
+        <td class="n">{{ paiement.montant_centimes|intcomma }}</td>
+        <td>{{ paiement.telephone }}</td>
+        <td>{{ paiement.cree_le|date:"Y-m-d H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">Aucune demande de paiement mobile.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="qrc-note">Le montant affiché est en centimes d'euros : c'est l'unité de nos livres. La devise
+    réellement demandée au réseau (celle sur laquelle le rappel est recoupé) est dans
+    <code>PaiementMobile.detail</code>, gravée au moment de la demande — sinon un changement de taux
+    ultérieur ferait passer un paiement légitime pour un trop-perçu.</p>
+</div>
+
+<div class="qrc-card">
+  <h2>Événements de paiement reçus</h2>
+  <table class="qrc-table">
+    <thead><tr><th>Identifiant</th><th>Type</th><th>Reçu le</th><th>Traité</th><th>Erreur</th></tr></thead>
+    <tbody>
+    {% for evenement in evenements %}
+      <tr>
+        <td><code>{{ evenement.identifiant }}</code></td>
+        <td>{{ evenement.type_evenement }}</td>
+        <td>{{ evenement.recu_le|date:"Y-m-d H:i" }}</td>
+        <td>{% if evenement.traite %}oui{% else %}non{% endif %}</td>
+        <td class="qrc-lien">{{ evenement.erreur|truncatechars:140|default:"—" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Aucun événement reçu.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="qrc-note importante">Un événement non traité avec une erreur n'est pas un détail : c'est un
+  client qui a payé et qui n'a rien reçu. Le corps brut est conservé dans <code>EvenementPaiement.charge</code>,
+  donc le rejouer se fait en ré-exécutant <code>apps.billing.services.appliquer_webhook_stripe(corps,
+  secret_ok=True)</code> sur cette ligne — l'identifiant unique de l'événement rend l'opération idempotente,
+  un double rejet n'accordera jamais deux paliers.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+# Base locale et secrets : à ne jamais committer.
+# `db.sqlite3` sert aux tests et à l'aperçu ; il contient des comptes de démonstration (cf. scripts/seed_apercu.py)
+# et, sur un poste de développement, de vrais mots de passe saisis dans le formulaire d'inscription.
+db.sqlite3
+db.sqlite3-journal
+.env
+.env.*
+!.env.example
+
+# Artéfacts de build et de cache (vendor/ est re-matérialisé par scripts/repair_vendor.py).
+vendor/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+staticfiles/
+media/
+*.log

@@ -1,0 +1,74 @@
+[project]
+name = "qrstudio-api"
+version = "0.1.0"
+description = "QR Studio — API Django (comptes, QR dynamiques, statistiques de scan, back-office)"
+requires-python = ">=3.11"
+dependencies = [
+    "Django>=5.2,<5.3",
+    "djangorestframework>=3.16,<4",
+    "django-filter>=25.1",
+    "drf-spectacular>=0.28",
+    "django-allauth[socialaccount,mfa]>=65.7,<66",
+    "redis>=5.2",
+    "psycopg[binary,pool]>=3.2",
+    "argon2-cffi>=23.1",
+    "celery>=5.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-django>=4.9", "ruff>=0.9", "mypy>=1.14", "bandit>=1.8", "django-extensions>=3.2"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["config", "apps", "tests"]
+extend-exclude = ["*/migrations/*", "vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "DJ", "RUF", "BLE"]
+ignore = [
+    "DJ012", # OrderWithRespectTo: les index sont déclarés en SQL (voir apps/analytics)
+    "RUF001",  # caractères "ambigus" dans les chaînes FR (é, ’) — voulu
+    "RUF002",
+    "RUF003",
+    "RUF012",  # attributs de classe mutables : convention DRF (permission_classes = [...])
+]
+
+[tool.ruff.lint.per-file-ignores]
+"config/settings/*" = ["F405", "F811", "E501", "F401"]   # surcharges de réglages : import * assumé
+"*/migrations/*" = ["E501", "RUF012"]
+"apps/analytics/models.py" = ["DJ001"]  # NULL vs '' signifiants (voir commentaire)
+"tests/*" = ["E501", "F841", "B011"]  # en test, la lisibilite prime sur la marge de droite
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+check_untyped_defs = true
+# `warn_unused_ignores = true` : un `# type: ignore` devenu inutile est une erreur. Sans ce réglage,
+# ils s'accumulent et finissent par masquer de vraies erreurs sur la ligne concernée.
+warn_unused_ignores = true
+exclude = ["vendor/", "migrations/"]
+
+[[tool.mypy.overrides]]
+# Les modules de réglages sont déclaratifs : `ACCOUNT_FORMS = {...}`, `CACHES = {"default": {...}}`
+# sont des dictionnaires hétérogènes que le typeur refuse d'inférer, et un `dict[str, Any]` partout
+# n'apporterait rien. On les exclude du controle plutot que de les parsemer d'ignores.
+module = ["config.settings.*"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+# `testpaths` n'est pas un confort : `vendor/` est un `pip install --target` et embarque les suites de test
+# de ses propres paquets (jsonschema, mypyc, referencing…). Sans cette ligne, `make test` — et donc la CI —
+# echoue a les collecter (« No module named jsonpath_ng ») alors que notre code, lui, passe.
+testpaths = ["apps", "tests"]
+filterwarnings = ["error::DeprecationWarning:django.*"]

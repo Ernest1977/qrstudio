@@ -1,0 +1,79 @@
+# Terminaison TLS + protections avant l'application.
+# Le certificat est emis a la premiere requete : le DNS de qrstudio.kamcofarm.com doit deja pointer
+# sur le VPS, sinon Caddy reste en boucle de challenge et le service parait "tombé".
+
+{
+	email ops@kamcofarm.com
+	grace_period 10s
+	servers {
+		timeouts {
+			read_body 10s
+			write 30s
+			idle 75s
+		}
+	}
+}
+
+qrstudio.kamcofarm.com {
+	encode zstd gzip
+
+	# Le QR mene a /r/... : un visiteur mobile sur 4G attend le 302, pas une page de erreur 502
+	# persistante. Les en-tetes de securite sont aussi poses cote Django ; la duplication est voulue
+	# (le reverseur peut repondre avant que l'app ne soit jointe).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		-Server
+	}
+
+	# Politique de contenu : deux emitteurs, deux perimetres, pas de chevauchement.
+	#
+	# Les pages rendues par Django (/manage/, /manage-9f2/, /accounts/, et les pages publiques /r/{slug})
+	# portent la leur : appliquee, avec un nonce propre a la requete (voir `apps.common.csp` et, cote
+	# documentation, README § « Politique de contenu (CSP) »). Publier la meme ligne ici y ajouterait une
+	# seconde politique a l'intersection de laquelle le navigateur devrait obeir : deux regles a maintenir,
+	# pour un gain nul.
+	#
+	# Reste le SPA, servi en statique : lui n'est pas couvert par Django. Sa ligne reste en « Report-Only »
+	# parce qu'`index.html` garde un <script> en ligne (le theme est resolu avant le premier rendu React,
+	# sans quoi la page s'affiche une frame durant dans le mauvais theme). Passer en `Content-Security-Policy`
+	# simple demande de sortir ce script dans un module, et de garder `img-src … data: blob:` (le studio
+	# fabrique ses apercus en data: et ses telechargements en blob:) avec `style-src-attr 'unsafe-inline'`.
+	@front {
+		not path /api/* /r/* /manage* /accounts/* /healthz/* /csp-violation/*
+	}
+	header @front Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; upgrade-insecure-requests"
+
+	# Journalise le status amont et la duree reelle : sans ca, on ne peut pas distinguer un App
+	# lent d'un reseau lent quand le client signale « ca tourne au ralenti ».
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+		format json
+	}
+
+	# Limite de taille : 1 Mo pour un import de logo, 16 Ko pour un POST d'API.
+	@app {
+		path /api/* /r/* /admin/* /manage*
+	}
+	handle {
+		# Les compteurs de frein applicatifs vivent dans Redis ; ici on ne se defend que du balluchon.
+		request_body 1MB
+		reverse_proxy app:8000 {
+			header_up X-Forwarded-Proto https
+			transport http {
+				dial_timeout 3s
+				response_header_timeout 30s
+				idle_conn_timeout 75s
+			}
+			health_uri /healthz/
+			health_interval 10s
+			health_timeout 2s
+		}
+	}
+}

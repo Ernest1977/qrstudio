@@ -1,0 +1,52 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+{% block title %}QR Studio — état du service{% endblock %}
+{% block content %}
+{% include "manage/_style.html" %}
+<h1>État du service</h1>
+<div class="qrc-nav">
+  <a href="{% url 'backoffice:dashboard' %}" class="lien-actif">État du service</a>
+  <a href="{% url 'backoffice:analytique' %}">Analytique des scans</a>
+  <a href="{% url 'backoffice:qr_creer' %}">Créer un QR (gratuit)</a>
+  <a href="{% url 'backoffice:abonnements' %}">Abonnements</a>
+  <a href="{% url 'backoffice:queue' %}">Files</a>
+  <a href="{% url 'admin:index' %}">django-admin</a>
+</div>
+
+{% if scans_hier is None %}
+  <p class="qrc-note importante">Aucun agrégat pour hier ({{ agregat_jour|default:"aucune journée calculée" }}) :
+    la tâche de nuit <code>rebuild_daily_stats</code> n'a rien écrit. Les pages d'analytique affichent donc des
+    zéros — ce ne sont pas des scans manquants, c'est un agrégat manquant. Le recalcul se déclenche en bas de
+    <a href="{% url 'backoffice:analytique' %}">l'analytique</a> ou en commande.</p>
+{% else %}
+  <ul class="qrc-kpis">
+    <li><b>{{ scans_hier|intcomma }}</b><span>scans le {{ agregat_jour }}</span></li>
+    <li><b>{{ uniques_hier|intcomma }}</b><span>visiteurs uniques</span></li>
+    <li><b>{{ bots_hier|intcomma }}</b><span>bots bloqués</span></li>
+  </ul>
+{% endif %}
+
+<table class="qrc-table">
+  <caption>Volume</caption>
+  <tr><th>Comptes</th><td>{{ users|intcomma }}</td><th>actifs</th><td>{{ users_actifs|intcomma }}</td></tr>
+  <tr><th>QR enregistrés</th><td>{{ qr_total|intcomma }}</td><th>dont dynamiques</th><td>{{ qr_dynamic|intcomma }}</td></tr>
+  <tr><th>en pause</th><td>{{ qr_paused|intcomma }}</td><th>créés dans l'espace admin</th><td>{{ qr_admin|intcomma }}</td></tr>
+  <tr><th>cache</th><td colspan="3">{{ cache }}</td></tr>
+</table>
+
+<h2>Top QR par scans cumulés</h2>
+<table class="qrc-table">
+  <thead><tr><th>id</th><th>slug</th><th>libellé</th><th>nature</th><th>provenance</th><th class="n">scans</th><th></th></tr></thead>
+  <tbody>
+  {% for row in top_qr %}
+    <tr><td>{{ row.id }}</td><td><code>{{ row.slug }}</code></td><td>{{ row.label|default:"—" }}</td>
+      <td>{{ row.kind }}</td><td>{{ row.origine }}</td><td class="n">{{ row.scan_count_total|intcomma }}</td>
+      <td><a href="{% url 'backoffice:analytique_qr' row.id %}">analytique</a></td></tr>
+  {% empty %}
+    <tr><td colspan="7">Aucun QR.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="qrc-note">La colonne « provenance » est ce qui distingue un QR payant d'un QR d'outil interne :
+  <code>admin</code> n'a rien facturé, par construction, et ne doit donc pas être lu comme du revenu perdu.</p>
+{% endblock %}

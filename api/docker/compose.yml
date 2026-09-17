@@ -1,0 +1,137 @@
+# Pile complete pour un deploiement Hostinger VPS (scenario A d'ARCHITECTURE.md #8).
+# `docker compose up` doit suffire a froid : c'est le critere d'acceptation de la spec.
+name: qrstudio
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file: [../.env]
+    environment:
+      DATABASE_URL: postgres://qrs:${POSTGRES_PASSWORD}@pgbouncer:6432/qrs
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      pgbouncer: {condition: service_started}
+    volumes:
+      - media:/app/media
+    restart: unless-stopped
+    command: >
+      gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker
+      -b 0.0.0.0:8000 -w 4 --timeout 30 --keep-alive 75 --access-logfile -
+
+  worker:
+    build: {context: .., dockerfile: docker/Dockerfile}
+    env_file: [../.env]
+    environment:
+      DATABASE_URL: postgres://qrs:${POSTGRES_PASSWORD}@pgbouncer:6432/qrs
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+    command: celery -A config worker -Q default,ingest -l info --concurrency 4 --max-tasks-per-child 200
+    depends_on: {app: {condition: service_started}}
+    restart: unless-stopped
+
+  beat:
+    build: {context: .., dockerfile: docker/Dockerfile}
+    env_file: [../.env]
+    environment:
+      DATABASE_URL: postgres://qrs:${POSTGRES_PASSWORD}@pgbouncer:6432/qrs
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+    command: celery -A config beat -l info
+    depends_on: {app: {condition: service_started}}
+    restart: unless-stopped
+    # Un seul beat : deux scheduleurs doubles each rebuild et done doublonner les compteurs.
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: qrs
+      POSTGRES_USER: qrs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - max_connections=200
+      - -c
+      - work_mem=16MB
+      - -c
+      - wal_compression=on
+      - -c
+      - autovacuum_vacuum_scale_factor=0.05
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qrs -d qrs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: qrs
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "5000"
+      DEFAULT_POOL_SIZE: "40"
+    volumes:
+      - ./conf/pgbouncer-extra.ini:/etc/pgbouncer/pgbouncer-custom.ini:ro
+    # L'image gere `auth_query` elle-meme; on lui donne le compte de service. Si Postgres est en
+    # scram-sha-256 (defaut en 17), ajouter `auth_type = scram-sha-256` a l'ini et creer l'utilisateur
+    # de pool — a verifier au premier deploiement, non executable ici (ni Docker ni Postgres dans le
+    # bac a sable de developpement).
+    ports: ["127.0.0.1:6432:6432"]
+    depends_on: {postgres: {condition: service_healthy}}
+    restart: unless-stopped
+
+  redis:
+    image: valkey/valkey:8-alpine
+    command: >
+      valkey-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly no
+      --save ""
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    # allkeys-lru est delibere : une cle de cache perdue coute un select, une cle de compteur perdue
+    # ne bloque personne. En revanche le stream de scans est en memoire => `consume_scans` doit tourner
+    # souvent (voir beat) et la purge ne doit JAMAIS viser la base 0.
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment: {MINIO_ROOT_USER: qrs, MINIO_ROOT_PASSWORD: ${MINIO_SECRET}}
+    volumes: [miniodata:/data]
+    restart: "no"   # non requis au sprint 1 : les logos restent sur disque (ARCHITECTURE.md #8)
+
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./conf/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: {app: {condition: service_started}}
+    restart: unless-stopped
+
+volumes:
+  pgdata: {}
+  media: {}
+  miniodata: {}
+  caddy_data: {}
+  caddy_config: {}

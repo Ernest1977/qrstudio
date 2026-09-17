@@ -1,0 +1,11 @@
+# Outils de developpement et de CI.
+-r requirements.txt
+pytest>=8
+pytest-django>=4.8
+pytest-cov>=5
+ruff>=0.6
+mypy>=1.11
+bandit>=1.7
+django-stubs>=5
+djangorestframework-stubs>=3.15
+types-redis

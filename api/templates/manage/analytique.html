@@ -1,0 +1,143 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+{% block title %}QR Studio — analytique des scans{% endblock %}
+{% block content %}
+{% include "manage/_style.html" %}
+
+<h1>Analytique des scans</h1>
+<div class="qrc-nav">
+  <a href="{% url 'backoffice:dashboard' %}">État du service</a>
+  <a href="{% url 'backoffice:analytique' %}" class="lien-actif">Analytique</a>
+  <a href="{% url 'backoffice:qr_creer' %}">Créer un QR (gratuit)</a>
+  <a href="{% url 'backoffice:abonnements' %}">Abonnements</a>
+  <a href="{% url 'backoffice:queue' %}">Files</a>
+  <a href="{% url 'admin:index' %}">django-admin</a>
+</div>
+
+{% if recalcule >= 0 %}
+  <p class="qrc-note qrc-ok">Reconstruction terminée : {{ recalcule|intcomma }} lignes d'agrégat réécrites.</p>
+{% endif %}
+{% if filtre_actif %}
+  <p class="qrc-note importante">Filtre actif : cette vue redescend dans les lignes par (QR, jour, pays)
+    au lieu de lire les totaux journaliers de plateforme. C'est exact, mais plus lent — ne laissez pas un
+    filtre de 90 jours ouvert en permanence sur une grosse instance.</p>
+{% endif %}
+
+<form method="get" class="qrc-filtres">
+  <label>Période
+    <select name="jours">
+      {% for n in jours_disponibles %}
+        <option value="{{ n }}" {% if n == jours %}selected{% endif %}>{{ n }} derniers jours</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Nature
+    <select name="kind">
+      <option value="">toutes</option>
+      <option value="static" {% if kind == "static" %}selected{% endif %}>statiques</option>
+      <option value="dynamic" {% if kind == "dynamic" %}selected{% endif %}>dynamiques</option>
+    </select>
+  </label>
+  <label>Provenance
+    <select name="origine">
+      <option value="">toutes</option>
+      <option value="client" {% if origine == "client" %}selected{% endif %}>créés par les clients</option>
+      <option value="admin" {% if origine == "admin" %}selected{% endif %}>créés dans l'espace admin</option>
+      <option value="import" {% if origine == "import" %}selected{% endif %}>importés</option>
+    </select>
+  </label>
+  <button type="submit" class="qrc-bouton">Filtrer</button>
+</form>
+
+<ul class="qrc-kpis">
+  <li><b>{{ totaux.scans|intcomma }}</b><span>scans ({{ nb_jours }} j)</span></li>
+  <li><b>{{ moyenne_jour|intcomma }}</b><span>scans par jour en moyenne</span></li>
+  <li><b>{{ totaux.visiteurs_uniques|intcomma }}</b><span>visiteurs uniques (somme par QR)</span></li>
+  <li><b>{{ totaux.dynamiques|intcomma }}</b><span>scans de QR dynamiques</span></li>
+  <li><b>{{ totaux.admin|intcomma }}</b><span>scans de l'espace admin</span></li>
+  <li><b>{{ totaux.bots|intcomma }}</b><span>scans de bots bloqués</span></li>
+</ul>
+
+<div class="qrc-card">
+  <h2>Scans et visiteurs uniques</h2>
+  {{ graph_scans }}
+  <p class="qrc-note">« Visiteurs uniques » est la somme des uniques par (QR, jour, pays) : un même visiteur
+    qui scanne deux QR compte deux fois. C'est une borne haute, affichée comme telle — le chiffre exact reste
+    celui que le client voit sur son propre QR.</p>
+</div>
+
+<div class="qrc-card">
+  <h2>Mélange statique / dynamique, et part de l'espace admin</h2>
+  {{ graph_mix }}
+  <p class="qrc-note">La ligne rouge est le volume que la grille tarifaire ne facture pas : ce sont les QR
+    fabriqués ici même, gratuitement, par l'équipe. Elle doit rester plate et petite ; si elle se met à suivre
+    la bleue, quelqu'un crée pour des clients depuis l'espace admin.</p>
+</div>
+
+<div class="qrc-card">
+  <h2>Appareils</h2>
+  {{ graph_canaux }}
+</div>
+
+<div class="qrc-card">
+  <h2>Par pays</h2>
+  {{ graph_pays }}
+  <table class="qrc-table">
+    <thead><tr><th>Pays</th><th class="n">Scans</th><th class="n">Visiteurs</th></tr></thead>
+    <tbody>
+    {% for ligne in pays %}
+      <tr><td>{{ ligne.nom }} <span class="qrc-badge">{{ ligne.code }}</span></td>
+        <td class="n">{{ ligne.scans|intcomma }}</td><td class="n">{{ ligne.visiteurs|intcomma }}</td></tr>
+    {% empty %}
+      <tr><td colspan="3">Aucun pays agrégé sur la période.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="qrc-card">
+  <h2>QR qui portent le volume</h2>
+  <table class="qrc-table">
+    <thead><tr><th>QR</th><th>Propriétaire</th><th>Nature</th><th>Provenance</th><th class="n">Scans</th><th class="n">Visiteurs</th><th></th></tr></thead>
+    <tbody>
+    {% for ligne in top %}
+      <tr>
+        <td>{{ ligne.label }}{% if ligne.slug %} <code>{{ ligne.slug }}</code>{% endif %}</td>
+        <td>{{ ligne.owner|default:"—" }}</td>
+        <td>{% if ligne.kind %}<span class="qrc-badge {% if ligne.kind == 'dynamic' %}dyn{% else %}stat{% endif %}">{{ ligne.kind }}</span>{% else %}—{% endif %}</td>
+        <td>{{ ligne.origine|default:"—" }}</td>
+        <td class="n">{{ ligne.scans|intcomma }}</td>
+        <td class="n">{{ ligne.visiteurs|intcomma }}</td>
+        <td>{% if ligne.id %}<a href="{% url 'backoffice:analytique_qr' ligne.id %}">détail</a>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">Aucun scan agrégé sur la période.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="qrc-card">
+  <h2>Créations sur la période</h2>
+  <ul class="qrc-kpis">
+    <li><b>{{ creations.total|intcomma }}</b><span>QR créés</span></li>
+    <li><b>{{ creations.statiques|intcomma }}</b><span>statiques</span></li>
+    <li><b>{{ creations.dynamiques|intcomma }}</b><span>dynamiques</span></li>
+    <li><b>{{ creations.admin|intcomma }}</b><span>depuis l'espace admin</span></li>
+    <li><b>{{ creations.comptes_admin|intcomma }}</b><span>comptes admins utilisés</span></li>
+    <li><b>{{ creations.archives|intcomma }}</b><span>mis à l'archive</span></li>
+  </ul>
+  <form method="post" action="{% url 'backoffice:recalcul' %}" class="qrc-filtres">
+    {% csrf_token %}
+    <label>Reconstruire les agrégats
+      <select name="jours">
+        <option value="7">7 derniers jours</option>
+        <option value="30">30 derniers jours</option>
+      </select>
+    </label>
+    <button type="submit" class="qrc-bouton secondaire">Recalculer</button>
+    <span class="qrc-note" style="margin:0">Au-delà de 30 jours, c'est
+      <code>python manage.py rebuild_daily_stats --since=…</code> qu'il faut lancer, pas une vue HTTP.</span>
+  </form>
+</div>
+{% endblock %}

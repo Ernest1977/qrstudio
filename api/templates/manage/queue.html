@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Files d'attente{% endblock %}
+{% block content %}
+<h1>Files</h1>
+<ul>
+  <li>Ingestion des scans (Redis Stream) : <strong>{{ stream_enabled|yesno:"activée,désactivée" }}</strong></li>
+  <li>File <code>{{ stream_name }}</code> : {{ stream_length }} événement{{ stream_length|pluralize }}</li>
+  <li>Broker Celery : <code>{{ broker }}</code></li>
+</ul>
+{% endblock %}

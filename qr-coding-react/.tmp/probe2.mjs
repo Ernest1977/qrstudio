@@ -1,0 +1,48 @@
+import { spawn } from 'node:child_process';
+import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path';
+import puppeteer from 'puppeteer';
+import sharp from 'sharp';
+import { readBarcodesFromImageData, prepareZXingModule } from 'zxing-wasm/reader';
+const PORT=4323, BASE=`http://127.0.0.1:${PORT}/`;
+const server = spawn('node',['node_modules/vite/bin/vite.js','preview','--port',String(PORT),'--strictPort'],{stdio:'ignore'});
+const wait=async()=>{for(let i=0;i<80;i++){await new Promise(r=>setTimeout(r,250));const ok=await new Promise(res=>{const q=http.get(BASE,r=>{r.resume();res(r.statusCode===200)});q.on('error',()=>res(false))});if(ok)return;}throw new Error('no server')};
+await wait();
+await prepareZXingModule({overrideURL:path.resolve('node_modules/zxing-wasm/reader/zxing_reader.wasm'),fallback:()=>fetch('file://'+path.resolve('node_modules/zxing-wasm/reader/zxing_reader.wasm')).then(r=>r.arrayBuffer())});
+const b=await puppeteer.launch({args:['--no-sandbox','--disable-dev-shm-usage']});
+const p=await b.newPage();
+const logs=[]; p.on('pageerror',e=>logs.push('PAGEERROR '+e.message)); p.on('console',m=>{if(m.type()==='error'||m.type()==='warning')logs.push(m.type()+': '+m.text())});
+await p.goto(BASE,{waitUntil:'networkidle0'});
+const setValue=(sel,val)=>p.evaluate((s2,v)=>{const el=document.querySelector(s2);if(!el)throw new Error('absent '+s2);const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}))},sel,val);
+await setValue('#url-url','https://a.fr'); await new Promise((r) => setTimeout(r, 300));
+await p.evaluate(() => document.querySelectorAll('.qrc-type')[11].click()); await new Promise((r) => setTimeout(r, 400));
+console.log('after bcard click → fields:', await p.$$eval('.qrc-fields label', e=>e.length), 'preview?', !!await p.$('.qrc-preview-svg svg'));
+await p.evaluate(() => document.querySelectorAll('.qrc-type')[0].click()); await new Promise((r) => setTimeout(r, 400));
+const st = await p.evaluate(()=>({ has: !!document.querySelector('#url-url'), fields: [...document.querySelectorAll('.qrc-fields label')].map(l=>l.textContent), root: !!document.querySelector('#root')?.children.length, active: document.querySelector('.qrc-type.is-active')?.textContent }));
+console.log('after url click →', JSON.stringify(st));
+console.log('logs:', logs.join('\n') || 'none');
+// --- partie logo
+await setValue('#url-url','https://exemple.com/campanile'); await new Promise((r) => setTimeout(r, 300));
+const png = await sharp({create:{width:24,height:24,channels:4,background:{r:20,g:20,b:20,alpha:1}}}).png().toBuffer();
+fs.writeFileSync('/tmp/logo.png', png);
+await (await p.$('#qrc-logo-input')).uploadFile('/tmp/logo.png');
+await new Promise((r) => setTimeout(r, 800));
+const info = await p.evaluate(()=>({ notices:[...document.querySelectorAll('.qrc-notice')].map(n=>n.textContent), label: document.querySelector('#qrc-logo-size')?.value, svg: document.querySelector('.qrc-preview-svg svg')?.outerHTML.slice(0,0) }));
+console.log('logo state:', JSON.stringify(info));
+fs.writeFileSync('/tmp/logo-live.svg', await p.$eval('.qrc-preview-svg svg', el=>el.outerHTML));
+for (const [label, buf] of [['svg markup', Buffer.from(fs.readFileSync('/tmp/logo-live.svg','utf8'))]]) {
+  const {data,info:i2}=await sharp(buf,{density:400}).flatten({background:'#fff'}).raw().ensureAlpha().toBuffer({resolveWithObject:true});
+  const r=await readBarcodesFromImageData({data:new Uint8ClampedArray(data),width:i2.width,height:i2.height},{tryHarder:true});
+  console.log(label,'@400 →', r.length?JSON.stringify(r[0].text):'NULL', i2.width+'px');
+}
+const shot = await (await p.$('.qrc-preview-svg svg')).screenshot();
+const {data:d3,info:i3}=await sharp(shot).flatten({background:'#fff'}).raw().ensureAlpha().toBuffer({resolveWithObject:true});
+const r3=await readBarcodesFromImageData({data:new Uint8ClampedArray(d3),width:i3.width,height:i3.height},{tryHarder:true});
+console.log('screenshot 1x →', r3.length?JSON.stringify(r3[0].text):'NULL', `${i3.width}x${i3.height}`);
+await p.setViewport({width:1280,height:1200,deviceScaleFactor:4}); await new Promise((r) => setTimeout(r, 500));
+const shot2 = await (await p.$('.qrc-preview-svg svg')).screenshot();
+fs.writeFileSync('/tmp/logo-shot4x.png', shot2);
+const {data:d4,info:i4}=await sharp(shot2).flatten({background:'#fff'}).raw().ensureAlpha().toBuffer({resolveWithObject:true});
+const r4=await readBarcodesFromImageData({data:new Uint8ClampedArray(d4),width:i4.width,height:i4.height},{tryHarder:true});
+console.log('screenshot 4x →', r4.length?JSON.stringify(r4[0].text):'NULL', `${i4.width}x${i4.height}`);
+console.log('logs2:', logs.slice(-3).join('\n')||'none');
+await b.close(); server.kill('SIGTERM');

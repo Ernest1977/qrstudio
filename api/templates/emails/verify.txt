@@ -1,0 +1,10 @@
+{% load i18n %}Bonjour,
+
+Confirmez votre adresse e-mail sur {{ brand }} avec le code :
+
+    {{ code }}
+
+Il expire dans {{ minutes }} minutes. Saisissez-le sur l'écran « Vérification ».
+Si vous n'avez rien demandé, ignorez ce message : aucun compte ne sera créé sans confirmation.
+
+— {{ brand }} · {{ support_email }}

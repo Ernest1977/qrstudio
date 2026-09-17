@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "puppeteer": "^23.11.1",
+    "qrcode": "^1.5.4",
+    "qrcode-generator": "^1.4.4",
+    "sharp": "^0.35.4",
+    "zxing-wasm": "^3.1.4"
+  }
+}

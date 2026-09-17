@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+{% block title %}QR Studio — scan du QR {{ qr.slug }}{% endblock %}
+{% block content %}
+{% include "manage/_style.html" %}
+
+<h1>QR {{ qr.label|default:qr.slug }}</h1>
+<div class="qrc-nav">
+  <a href="{% url 'backoffice:analytique' %}">← Analytique</a>
+  <a href="{% url 'backoffice:qr_creer' %}">Créer un QR (gratuit)</a>
+  <a href="{% url 'admin:qr_qrcode_change' qr.pk %}">Éditer dans django-admin</a>
+</div>
+
+{% if cree %}<p class="qrc-note qrc-ok">QR créé depuis l'espace admin. Aucune facturation n'a été appliquée :
+  la porte de quota a été franchie par l'exemption, pas par un palier payé.</p>{% endif %}
+{% if supprime %}<p class="qrc-note importante">Suppression logique enregistrée par le service
+  <code>apps.qr.services.soft_delete</code> — les agrégats restent consultables ici.</p>{% endif %}
+
+<div class="qrc-card">
+  <h2>Fiche</h2>
+  <table class="qrc-table">
+    <tr><th>Propriétaire</th><td>{{ qr.owner.email }}</td>
+      <th>Compte exonéré</th><td>{% if qr.owner.is_superuser %}oui (superutilisateur){% else %}non{% endif %}</td></tr>
+    <tr><th>Nature</th><td><span class="qrc-badge {% if qr.kind == 'dynamic' %}dyn{% else %}stat{% endif %}">{{ qr.kind }}</span></td>
+      <th>Provenance</th><td>{{ qr.origine }}</td></tr>
+    <tr><th>Type</th><td><code>{{ qr.type_id }}</code></td>
+      <th>Actif / public</th><td>{{ qr.is_active }} / {{ qr.is_public }}</td></tr>
+    <tr><th>Scans cumulés</th><td>{{ scan_total|intcomma }}</td>
+      <th>Scans (90 j)</th><td>{{ totaux.scans|intcomma }} · {{ totaux.unique|intcomma }} visiteurs</td></tr>
+    {% if qr.target_url %}<tr><th>Destination</th><td colspan="3" class="qrc-lien">{{ qr.target_url }}</td></tr>{% endif %}
+    {% if qr.payload %}<tr><th>Contenu</th><td colspan="3" class="qrc-lien">{{ qr.payload|truncatechars:220 }}</td></tr>{% endif %}
+    {% if qr.notes %}<tr><th>Notes</th><td colspan="3">{{ qr.notes }}</td></tr>{% endif %}
+  </table>
+</div>
+
+<div class="qrc-card">
+  <h2>Aperçu généré à la volée</h2>
+  <img class="qrc-qr" src="{{ aperco }}" alt="Aperçu du QR {{ qr.slug }}" width="190" height="190">
+  {% if qr.slug %}<p class="qrc-lien">{{ qr.short_url }}</p>{% endif %}
+</div>
+
+<div class="qrc-card">
+  <h2>Scans par jour, 90 derniers jours</h2>
+  {{ graph }}
+  <p class="qrc-note">Série lue dans <code>analytics_qrdailystats</code>, trous comblés à zéro. L'API client
+    lit exactement les mêmes lignes : un désaccord entre les deux vues est un bug d'agrégation, pas un
+    arrondi.</p>
+</div>
+
+<div class="qrc-card">
+  <h2>Par pays</h2>
+  {{ graph_pays }}
+</div>
+
+<div class="qrc-card">
+  <h2>Historique des versions</h2>
+  <table class="qrc-table">
+    <thead><tr><th>Quand</th><th>Par qui</th><th>Changement</th></tr></thead>
+    <tbody>
+    {% for version in details.versions %}
+      <tr><td>{{ version.created_at|date:"Y-m-d H:i" }}</td><td>{{ version.actor__email|default:"—" }}</td>
+        <td class="qrc-lien">{{ version.change }}</td></tr>
+    {% empty %}
+      <tr><td colspan="3">Aucune version enregistrée.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if not qr.deleted_at %}
+    <form method="post" action="{% url 'backoffice:qr_supprimer' qr.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="qrc-bouton secondaire">Supprimer ce QR (logiquement)</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

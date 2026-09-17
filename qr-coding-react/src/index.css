@@ -1,0 +1,1132 @@
+/* ==========================================================================
+   QR Coding — thème noir & or.
+   Porté depuis le <style> du fichier d'origine, avec deux changements :
+     1. tous les sélecteurs sont des classes (`.qrc-*`) : plus de `label{}`,
+        `input{}` globaux, qui cassent les composants tiers et rendent le
+        thème impossible à isoler ;
+     2. les états viennent de l'attribut `data-theme` de `<html>` (déjà posé
+        par le script inline de `index.html`, d'où l'absence de flash au
+        rechargement) et de `aria-pressed` / `.is-active`.
+   ========================================================================== */
+
+:root {
+  --bg: #0a0a0c;
+  --surface: #141416;
+  --surface-2: #1d1d21;
+  --text: #f5f0e1;
+  --muted: #a89f8a;
+  --primary: #d4af37;
+  --primary-2: #f5d76e;
+  --border: #2b2b32;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --radius: 18px;
+  --warn-ink: #e8a33d;
+  --ok-ink: #57c98a;
+  --ring: rgba(212, 175, 55, 0.45);
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  --bg: #faf7ef;
+  --surface: #fff;
+  --surface-2: #f3eee0;
+  --text: #151310;
+  --muted: #7a7260;
+  --border: #e4dcc6;
+  --shadow: 0 10px 30px rgba(60, 50, 20, 0.1);
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s, color 0.3s;
+  -webkit-text-size-adjust: 100%;
+}
+
+.qrc-app {
+  min-height: 100vh;
+}
+
+.qrc-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ------------------------------- Header -------------------------------- */
+.qrc-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.qrc-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 64px;
+}
+
+.qrc-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.15rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.qrc-logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6d5ef0, #00c2a8);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.qrc-logo-mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.qrc-nav-links {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.qrc-nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.qrc-nav-links a:hover,
+.qrc-nav-links a:focus-visible {
+  color: var(--primary);
+}
+
+.qrc-btn-theme {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+/* -------------------------------- Hero ---------------------------------- */
+.qrc-hero {
+  padding: 56px 0 34px;
+  text-align: center;
+}
+
+.qrc-hero h1 {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  letter-spacing: -0.5px;
+  margin: 0;
+  line-height: 1.12;
+}
+
+.qrc-hero h1 span {
+  background: linear-gradient(90deg, var(--primary-2), var(--primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.qrc-hero p {
+  color: var(--muted);
+  max-width: 660px;
+  margin: 14px auto 0;
+  font-size: 1.02rem;
+  line-height: 1.6;
+}
+
+/* ------------------------------- Studio --------------------------------- */
+.qrc-studio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  padding-bottom: 40px;
+  align-items: start;
+}
+
+.qrc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  min-width: 0;
+}
+
+.qrc-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 16px;
+  font-weight: 700;
+}
+
+.qrc-card-step {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: #111;
+  background: linear-gradient(135deg, var(--primary-2), var(--primary));
+  text-transform: none;
+}
+
+/* Types */
+.qrc-types {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.qrc-type {
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 11px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.12s;
+  font-size: 0.8rem;
+  color: var(--text);
+  font-family: inherit;
+  line-height: 1.25;
+}
+
+.qrc-type-ico {
+  font-size: 1.25rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.qrc-type:hover {
+  border-color: var(--primary);
+}
+
+.qrc-type:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.qrc-type.is-active {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(245, 215, 110, 0.08));
+  font-weight: 600;
+}
+
+/* Champs */
+.qrc-field {
+  margin: 0 0 12px;
+}
+
+.qrc-field label {
+  display: block;
+  font-size: 0.83rem;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.qrc-field input,
+.qrc-field select,
+.qrc-field textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.qrc-field textarea {
+  resize: vertical;
+  min-height: 68px;
+}
+
+.qrc-field input:focus-visible,
+.qrc-field select:focus-visible,
+.qrc-field textarea:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.qrc-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+/* Import de fichier */
+.qrc-filedrop {
+  margin-top: 4px;
+}
+
+.qrc-drop {
+  width: 100%;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 13px;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--muted);
+  cursor: pointer;
+  margin-top: 6px;
+  transition: border-color 0.2s, color 0.2s;
+  background: transparent;
+  font-family: inherit;
+}
+
+.qrc-drop:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.qrc-drop.is-filled {
+  border-style: solid;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ------------------------------- Aperçu --------------------------------- */
+.qrc-preview {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 22px;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.qrc-preview-svg {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.qrc-preview-svg svg {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+}
+
+.qrc-preview-empty {
+  min-height: 280px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.qrc-preview-empty span {
+  font-size: 3rem;
+  opacity: 0.35;
+}
+
+.qrc-preview-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Jauge de capacité */
+.qrc-capacity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.qrc-capacity-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.qrc-capacity-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ok-ink);
+  transition: width 0.2s ease;
+}
+
+.qrc-capacity.is-high .qrc-capacity-bar span {
+  background: var(--warn-ink);
+}
+
+.qrc-capacity.is-full .qrc-capacity-bar span,
+.qrc-capacity.is-error .qrc-capacity-bar span {
+  background: #e2574a;
+}
+
+.qrc-capacity small {
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Notices */
+.qrc-notices {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.qrc-notice {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  border-radius: 10px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+}
+
+.qrc-notice.is-warn {
+  color: var(--warn-ink);
+  background: rgba(232, 163, 61, 0.1);
+  border-color: rgba(232, 163, 61, 0.35);
+}
+
+.qrc-notice.is-info {
+  color: var(--muted);
+  background: rgba(140, 160, 200, 0.08);
+  border-color: var(--border);
+}
+
+/* Personnalisation */
+.qrc-custom {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.qrc-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.qrc-field--color input[type='color'] {
+  height: 44px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.qrc-field input[type='range'] {
+  accent-color: var(--primary);
+  padding: 0;
+  height: 30px;
+  cursor: pointer;
+}
+
+.qrc-field input[type='checkbox'] {
+  accent-color: var(--primary);
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+
+.qrc-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px 12px;
+  margin: 0;
+}
+
+.qrc-fieldset legend {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 6px;
+}
+
+.qrc-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qrc-chip {
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 0.81rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.2s, color 0.2s;
+  font-family: inherit;
+}
+
+.qrc-chip:hover {
+  border-color: var(--primary);
+}
+
+.qrc-chip.is-active {
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.qrc-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.qrc-inline input[type='color'] {
+  flex: 1;
+  height: 40px;
+  padding: 4px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.qrc-inline input[type='color']:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.qrc-check {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 0.83rem;
+  white-space: nowrap;
+  margin: 0;
+  color: var(--muted);
+}
+
+.qrc-range {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.qrc-range label {
+  font-size: 0.83rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.qrc-payload {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+}
+
+.qrc-payload summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.qrc-payload pre {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 190px;
+  overflow: auto;
+}
+
+/* Boutons */
+.qrc-dl {
+  display: flex;
+  gap: 10px;
+}
+
+.qrc-btn {
+  flex: 1;
+  border: none;
+  border-radius: 12px;
+  padding: 13px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.12s;
+  font-family: inherit;
+}
+
+.qrc-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.qrc-btn-primary {
+  background: linear-gradient(90deg, var(--primary-2), var(--primary));
+  color: #111;
+}
+
+.qrc-btn-primary:not(:disabled):hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.qrc-btn-ghost {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+
+.qrc-mini {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  font-size: 0.8rem;
+}
+
+/* ------------------------------ Sections -------------------------------- */
+.qrc-section {
+  padding: 52px 0;
+}
+
+.qrc-sec-title {
+  text-align: center;
+  font-size: 1.7rem;
+  margin: 0 0 30px;
+}
+
+.qrc-feat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.qrc-feat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.qrc-feat-ico {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(245, 215, 110, 0.18), rgba(212, 175, 55, 0.08));
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+}
+
+.qrc-feat h3 {
+  font-size: 1.02rem;
+  margin: 0 0 8px;
+}
+
+.qrc-feat p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.qrc-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.qrc-step {
+  text-align: center;
+  padding: 10px;
+}
+
+.qrc-step-num {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-2), var(--primary));
+  color: #111;
+  font-weight: 800;
+  font-size: 1.15rem;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 12px;
+}
+
+.qrc-step h3 {
+  font-size: 1.02rem;
+  margin: 0 0 8px;
+}
+
+.qrc-step p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.qrc-footer {
+  border-top: 1px solid var(--border);
+  padding: 28px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+/* ------------------------------ Responsive ------------------------------ */
+@media (max-width: 940px) {
+  .qrc-studio,
+  .qrc-feat-grid,
+  .qrc-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qrc-types {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .qrc-types {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .qrc-custom-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .qrc-nav-links {
+    gap: 12px;
+  }
+
+  .qrc-nav-links a {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+.qrc-muted {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+/* Les liens d'ancrage (#studio, #features…) arrivaient collés sous le header
+   sticky : le titre de section était masqué après navigation. */
+.qrc-studio,
+.qrc-section,
+[id] {
+  scroll-margin-top: 84px;
+}
+
+
+/* ==========================================================================
+   `/facturation` — caisse, suivi de paiement mobile, encadré de connexion.
+   Uniquement des variables de thème : la page doit suivre `data-theme` sans
+   règle `[data-theme='light']` supplémentaire, sinon le mode clair casse en
+   caisse (le cas où l'on découvre un contraste invivable à 2 h du matin).
+   ========================================================================== */
+
+.qrc-bill {
+  display: grid;
+  gap: 18px;
+  padding: 26px 0 8px;
+}
+
+.qrc-bill-entete h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.55rem, 1.1rem + 1.6vw, 2.15rem);
+}
+
+.qrc-bill-kicker {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.qrc-bill-prix {
+  font-size: 0.8em;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.qrc-bill-compte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.qrc-bill-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.qrc-bill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.qrc-bill-resume {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.qrc-bill-resume h2 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+}
+
+/* --- les cartes de paliers --- */
+
+.qrc-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.qrc-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qrc-plan.is-current {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.qrc-plan h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.qrc-plan-prix {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.qrc-plan-prix span {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.qrc-plan-liste {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+  font-size: 0.83rem;
+  color: var(--text);
+}
+
+.qrc-plan .qrc-bill-actions {
+  margin-top: auto;
+}
+
+/* --- badges, notices, code de paiement --- */
+
+.qrc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.qrc-badge.is-ok {
+  color: var(--ok-ink);
+  border-color: rgba(87, 201, 138, 0.4);
+  background: rgba(87, 201, 138, 0.12);
+}
+
+.qrc-badge.is-warn {
+  color: var(--warn-ink);
+  border-color: rgba(232, 163, 61, 0.4);
+  background: rgba(232, 163, 61, 0.12);
+}
+
+.qrc-notice.is-ok {
+  color: var(--ok-ink);
+  background: rgba(87, 201, 138, 0.1);
+  border-color: rgba(87, 201, 138, 0.35);
+}
+
+.qrc-notice.is-err {
+  color: #e46a6a;
+  background: rgba(228, 106, 106, 0.1);
+  border-color: rgba(228, 106, 106, 0.35);
+}
+
+.qrc-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.qrc-notice-close {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.qrc-notice-close:hover {
+  opacity: 1;
+}
+
+.qrc-authbox {
+  max-width: 460px;
+}
+
+.qrc-authbox h2 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.qrc-mobile,
+.qrc-mobile-form {
+  display: grid;
+  gap: 10px;
+}
+
+.qrc-mobile h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.qrc-mobile-montant {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.qrc-bill-exemption {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+  display: grid;
+  gap: 6px;
+}
+
+.qrc-bill-exemption p {
+  margin: 0;
+}
+
+.qrc-bill-exemption code {
+  font-size: 0.82em;
+}
+
+.qrc-lien-externe {
+  text-decoration: underline;
+}
+
+.qrc-mobile-code {
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.qrc-code {
+  margin: 6px 0 8px;
+  font-family: ui-monospace, 'Cascadia Mono', 'Menlo', monospace;
+  font-size: 1.5rem;
+  letter-spacing: 0.16em;
+  /* Le code doit pouvoir être recopié à la main si le presse-papiers est refusé
+     hors HTTPS : sélection à double clic sur une seule ligne. */
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.qrc-countdown {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.qrc-countdown.is-out {
+  color: var(--warn-ink);
+}
+
+.qrc-mobile-actions {
+  justify-content: space-between;
+}
+
+/* Sur petit écran, les liens d'ancre de la nav sont masqués — mais `/facturation`
+   doit rester atteignable : c'est précisément la page qu'on ouvre d'un téléphone. */
+.qrc-nav-links .qrc-nav-bill {
+  display: inline-flex;
+}
+
+@media (max-width: 640px) {
+  .qrc-code {
+    font-size: 1.25rem;
+  }
+}
+
+/* — Rendus vérifiés par le serveur (art + animation) —
+   Le bloc vit sous l'aperçu local : mêmes tokens, aucune mise en page dépendante d'une ressource externe. */
+.qrc-rendus {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.75rem;
+}
+.qrc-rendus-reglages {
+  display: grid;
+  gap: 0.5rem;
+}
+.qrc-rendus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.qrc-field--ligne {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.qrc-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.qrc-rendu-apercu {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+}
+.qrc-rendu-apercu img {
+  width: min(220px, 60%);
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.qrc-promo-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+}
+.qrc-promo-form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.qrc-promo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.qrc-promo-table th,
+.qrc-promo-table td {
+  text-align: left;
+  padding: 0.4rem 0.35rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.qrc-promo-table code {
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
