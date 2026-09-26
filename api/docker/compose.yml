@@ -9,10 +9,18 @@ services:
       dockerfile: docker/Dockerfile
     env_file: [../.env]
     environment:
+      # Epinglé ici et pas seulement dans l ENV de l image : `env_file` est plus fort que l ENV de
+      # l image, et `.env` porte `config.settings.dev` pour le `runserver` local. Laisser filer, le VPS
+      # tourne sur les reglages de dev : SQLite dans le conteneur, e-mails sur la console, ni HSTS ni
+      # cookies `Secure` — et rien ne le dit, parce que ca fonctionne quand meme.
+      DJANGO_SETTINGS_MODULE: config.settings.prod
       DATABASE_URL: postgres://qrs:${POSTGRES_PASSWORD}@pgbouncer:6432/qrs
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
-      AWS_S3_ENDPOINT_URL: http://minio:9000
+      # Les migrations sont faites ici et nulle part ailleurs : `worker` et `beat` partagent le meme
+      # point d'entree, et trois `migrate` en parallele sur un meme schema remontent des `DuplicateTable`
+      # aleatoires au premier demarrage. `RUN_MIGRATIONS=0` chez eux, `service_healthy` en amont.
+      RUN_MIGRATIONS: "1"
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -28,21 +36,33 @@ services:
     build: {context: .., dockerfile: docker/Dockerfile}
     env_file: [../.env]
     environment:
+      # Epinglé ici et pas seulement dans l ENV de l image : `env_file` est plus fort que l ENV de
+      # l image, et `.env` porte `config.settings.dev` pour le `runserver` local. Laisser filer, le VPS
+      # tourne sur les reglages de dev : SQLite dans le conteneur, e-mails sur la console, ni HSTS ni
+      # cookies `Secure` — et rien ne le dit, parce que ca fonctionne quand meme.
+      DJANGO_SETTINGS_MODULE: config.settings.prod
       DATABASE_URL: postgres://qrs:${POSTGRES_PASSWORD}@pgbouncer:6432/qrs
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      RUN_MIGRATIONS: "0"
     command: celery -A config worker -Q default,ingest -l info --concurrency 4 --max-tasks-per-child 200
-    depends_on: {app: {condition: service_started}}
+    depends_on: {app: {condition: service_healthy}}
     restart: unless-stopped
 
   beat:
     build: {context: .., dockerfile: docker/Dockerfile}
     env_file: [../.env]
     environment:
+      # Epinglé ici et pas seulement dans l ENV de l image : `env_file` est plus fort que l ENV de
+      # l image, et `.env` porte `config.settings.dev` pour le `runserver` local. Laisser filer, le VPS
+      # tourne sur les reglages de dev : SQLite dans le conteneur, e-mails sur la console, ni HSTS ni
+      # cookies `Secure` — et rien ne le dit, parce que ca fonctionne quand meme.
+      DJANGO_SETTINGS_MODULE: config.settings.prod
       DATABASE_URL: postgres://qrs:${POSTGRES_PASSWORD}@pgbouncer:6432/qrs
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      RUN_MIGRATIONS: "0"
     command: celery -A config beat -l info
-    depends_on: {app: {condition: service_started}}
+    depends_on: {app: {condition: service_healthy}}
     restart: unless-stopped
     # Un seul beat : deux scheduleurs doubles each rebuild et done doublonner les compteurs.
 
@@ -76,19 +96,17 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:latest
     environment:
-      DB_HOST: postgres
-      DB_PORT: "5432"
+      # Seulement ce dont l'image a besoin pour generer userlist.txt : le compte et le mot de passe.
+      # Le reste (port, pools, mode) vit dans ./conf/pgbouncer.ini, montee en dur sous le nez de
+      # l'image — voir le commentaire en tete de ce fichier pour pourquoi les variables ne suffisent pas.
       DB_USER: qrs
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: "5000"
-      DEFAULT_POOL_SIZE: "40"
     volumes:
-      - ./conf/pgbouncer-extra.ini:/etc/pgbouncer/pgbouncer-custom.ini:ro
-    # L'image gere `auth_query` elle-meme; on lui donne le compte de service. Si Postgres est en
-    # scram-sha-256 (defaut en 17), ajouter `auth_type = scram-sha-256` a l'ini et creer l'utilisateur
-    # de pool — a verifier au premier deploiement, non executable ici (ni Docker ni Postgres dans le
-    # bac a sable de developpement).
+      - ./conf/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+    # `auth_type = scram-sha-256` dans l'ini, mot de passe en clair dans userlist.txt (regenere a
+    # chaque demarrage par l'image a partir de DB_PASSWORD): c'est la combinaison qui marche avec
+    # Postgres 17, dont `password_encryption` vaut desormais scram. A confirmer au premier
+    # `docker compose up` — ni Docker ni Postgres ne tournent dans ce bac a sable.
     ports: ["127.0.0.1:6432:6432"]
     depends_on: {postgres: {condition: service_healthy}}
     restart: unless-stopped
@@ -112,18 +130,31 @@ services:
     # ne bloque personne. En revanche le stream de scans est en memoire => `consume_scans` doit tourner
     # souvent (voir beat) et la purge ne doit JAMAIS viser la base 0.
 
+  # Non requis en scenario A : les logos restent cote navigateur (data URL) et `prod.py` ne declare
+  # aucun backend S3. Le service est la pour le jour ou l'on stocke des fichiers, et ne demarre que si on
+  # le demande : `docker compose --profile s3 up -d`.
   minio:
+    profiles: ["s3"]
     image: minio/minio:latest
     command: server /data --console-address ":9001"
-    environment: {MINIO_ROOT_USER: qrs, MINIO_ROOT_PASSWORD: ${MINIO_SECRET}}
+    environment:
+      MINIO_ROOT_USER: qrs
+      # Style bloc, pas `environment: {a: b, c: ${X}}` : en YAML, une scalaire nue dans un flow mapping
+      # ne peut pas porter d'accolade — le `}` de `${MINIO_SECRET}` fermait le flux et le fichier etait
+      # invalide (`yaml.parser.ParserError` avant meme l'interpolation). Le service est sous profile, done
+      # jamais demarre ici : l'erreur ne se voyait qu'au jour ou l'on active `--profile s3`.
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET}
     volumes: [miniodata:/data]
-    restart: "no"   # non requis au sprint 1 : les logos restent sur disque (ARCHITECTURE.md #8)
 
   caddy:
     image: caddy:2-alpine
     ports: ["80:80", "443:443", "443:443/udp"]
     volumes:
       - ./conf/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Le build du studio (`cd ../qr-coding-react && npm ci && npm run build`). Caddy sert ces fichiers
+      # pour tout ce qui n'est pas une route Django (voir @app dans le Caddyfile) : sans ce montage, la
+      # racine du domaine repond un 404 du serveur de fichiers, pas une erreur de l'application.
+      - ../qr-coding-react/dist:/srv/site:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on: {app: {condition: service_started}}
